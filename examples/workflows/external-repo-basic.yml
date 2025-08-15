@@ -1,0 +1,27 @@
+# Example workflow for using HL-SCAI in your repository
+# Place this file in .github/workflows/ai-scan.yml in your repository
+
+name: AI Model Scan
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for AI models
+        id: ai-scan
+        uses: hiddenlayerai/hl-scai@main
+        with:
+          directory: .  # Scan entire repository
+
+      - name: Display results
+        run: |
+          echo "AI Models found: ${{ steps.ai-scan.outputs.models-found }}"
+          echo "${{ steps.ai-scan.outputs.summary }}"

@@ -1,0 +1,24 @@
+name: Basic AI Model Scan
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  scan-ai-models:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for AI models
+        id: scan
+        uses: hiddenlayerai/hl-scai@main
+        with:
+          directory: .
+
+      - name: Display results
+        run: |
+          echo "Models found: ${{ steps.scan.outputs.models-found }}"
+          echo "Summary: ${{ steps.scan.outputs.summary }}"

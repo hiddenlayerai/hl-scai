@@ -1,0 +1,75 @@
+name: 'HL-SCAI: AI Model Usage Scanner'
+description: 'Scan and analyze AI model usage in Python codebases'
+author: 'HiddenLayer'
+branding:
+  icon: 'search'
+  color: 'blue'
+
+inputs:
+  directory:
+    description: 'Directory to scan for AI model usage'
+    required: false
+    default: '.'
+  huggingface-token:
+    description: 'HuggingFace API token for fetching model metadata'
+    required: false
+  output-file:
+    description: 'Path to save the analysis results (JSON format)'
+    required: false
+    default: 'hl-scai-results.json'
+  fail-on-detection:
+    description: 'Fail the workflow if AI models are detected'
+    required: false
+    default: 'false'
+
+outputs:
+  models-found:
+    description: 'Number of AI models detected'
+    value: ${{ steps.analyze.outputs.models-found }}
+  report-path:
+    description: 'Path to the generated report file'
+    value: ${{ steps.analyze.outputs.report-path }}
+  summary:
+    description: 'Summary of detected AI models'
+    value: ${{ steps.analyze.outputs.summary }}
+  ai-assets:
+    description: 'JSON string of detected AI assets'
+    value: ${{ steps.analyze.outputs.ai-assets }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install HL-SCAI
+      shell: bash
+      run: |
+        echo "Installing HL-SCAI scanner..."
+        pip install -e "${{ github.action_path }}"
+
+    - name: Run HL-SCAI Analysis
+      id: analyze
+      shell: bash
+      env:
+        HUGGINGFACE_TOKEN: ${{ inputs.huggingface-token }}
+      run: |
+        echo "Scanning directory: ${{ inputs.directory }}"
+
+        # Run the scanner and save output
+        hl-scai scan -d "${{ inputs.directory }}" > "${{ inputs.output-file }}"
+
+        # Process the results and set outputs
+        python "${{ github.action_path }}/.github/scripts/process-results.py" \
+          --input "${{ inputs.output-file }}" \
+          --fail-on-detection "${{ inputs.fail-on-detection }}"
+
+    - name: Upload results as artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: hl-scai-results
+        path: ${{ inputs.output-file }}
+        retention-days: 30
