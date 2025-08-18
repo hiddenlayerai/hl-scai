@@ -1,0 +1,82 @@
+# Example workflow with AI usage policy enforcement
+# Place this file in .github/workflows/ai-policy.yml in your repository
+
+name: AI Usage Policy Check
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  policy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for AI models
+        id: ai-scan
+        uses: hiddenlayerai/hl-scai@main
+        with:
+          directory: .
+          huggingface-token: ${{ secrets.HUGGINGFACE_TOKEN }}
+          output-file: ai-scan-results.json
+
+      - name: Check AI usage policies
+        run: |
+          echo "## AI Usage Policy Check"
+          echo "Models found: ${{ steps.ai-scan.outputs.models-found }}"
+
+          # Policy 1: Fail if any AI models are detected (for high-security projects)
+          # Uncomment the following lines to enforce this policy:
+          # if [ "${{ steps.ai-scan.outputs.models-found }}" -gt 0 ]; then
+          #   echo "❌ Policy violation: No AI models allowed in this repository"
+          #   exit 1
+          # fi
+
+          # Policy 2: Check for specific providers
+          if echo '${{ steps.ai-scan.outputs.ai-assets }}' | jq -e '.[].metadata.provider.name | test("OpenAI")' > /dev/null 2>&1; then
+            echo "⚠️ Warning: OpenAI models detected - ensure API keys are in secrets"
+          fi
+
+          # Policy 3: Limit number of models
+          MAX_MODELS=10
+          if [ "${{ steps.ai-scan.outputs.models-found }}" -gt $MAX_MODELS ]; then
+            echo "❌ Policy violation: Too many AI models (found: ${{ steps.ai-scan.outputs.models-found }}, max: $MAX_MODELS)"
+            exit 1
+          fi
+
+          # Policy 4: Check for approved models only
+          echo '${{ steps.ai-scan.outputs.ai-assets }}' | jq -r '.[].metadata.name' > models.txt
+
+          # Define approved models
+          cat > approved_models.txt << EOF
+          gpt-3.5-turbo
+          gpt-4
+          claude-3-opus
+          claude-3-sonnet
+          bert-base-uncased
+          distilbert-base-uncased
+          EOF
+
+          # Check for unapproved models
+          unapproved=$(comm -23 <(sort models.txt) <(sort approved_models.txt) || true)
+          if [ ! -z "$unapproved" ]; then
+            echo "⚠️ Warning: Unapproved models detected:"
+            echo "$unapproved"
+            # Uncomment to fail on unapproved models:
+            # exit 1
+          fi
+
+          echo "✅ All policy checks passed!"
+
+      - name: Upload compliance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-compliance-report
+          path: |
+            ai-scan-results.json
+            models.txt
+            approved_models.txt
