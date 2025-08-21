@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A library for scanning and analyzing AI model usage in Python codebases"
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [
     {name = "HiddenLayer", email = "info@hiddenlayer.com"},
